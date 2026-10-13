@@ -186,30 +186,18 @@ src/main/resources
 
 ## 8. Decisions & tradeoffs
 
+- **Separate Github Repos** Having the Frontend and Backend on different repos makes tracking changes easier.
 - **Flyway owns the schema; `ddl-auto=validate`.** Migrations are the single
   source of truth and Hibernate only validates entities against them, so the
   schema never drifts silently. Enum columns are `varchar` with `CHECK`
   constraints rather than native PG enums, which are painful to evolve.
-- **Return Spring's native `Page<T>`.** The frontend already adapts the Spring
-  page shape, so emitting it directly avoids a custom wrapper. Tradeoff: it
-  couples the wire format to Spring Data's serialization; with more time I'd
-  expose an explicit `PageResponse` DTO so the contract is framework‑independent.
-- **Enum wire values via `@JsonValue`/`@JsonCreator` + a JPA `AttributeConverter`
-  + MVC `Converter`s.** All three layers (JSON body, DB, query params) agree on
-  the lowercase spelling (`in_progress`). `@JsonValue` alone does **not** cover
-  `@RequestParam` binding — hence the explicit MVC converters.
+
 - **State machine lives on the `TicketStatus` enum.** `canTransitionTo(...)` is
   the one place the rule is defined, mirrored by the frontend. The service
   enforces it and raises a `409` (a conflict with current state, not a 400).
 - **History is written in the same transaction as the change.** A ticket update
   and its audit row commit or roll back together — no change without its trail.
-- **Hand‑written DTO mapping, no Lombok, no MapStruct.** At this size the
-  explicit mapper is clearer and keeps the dependency surface small. Entities are
-  plain classes (JPA needs mutability + a no‑arg constructor, so records don't
-  fit); DTOs are records.
-- **Timestamps are `OffsetDateTime` (`TIMESTAMPTZ`)** to match the ISO‑8601
-  contract, with a custom auditing `DateTimeProvider` since Spring Data's default
-  yields `LocalDateTime`.
+
 - **No authentication** — out of scope for this assignment. In production I'd add
   a JWT/OAuth2 resource server and ownership checks.
 
