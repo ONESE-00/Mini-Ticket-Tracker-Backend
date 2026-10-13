@@ -37,4 +37,20 @@ public enum TicketStatus {
         }
         throw new IllegalArgumentException("Unknown status: " + value);
     }
+
+    /**
+     * Whether a transition from this status to {@code target} is allowed.
+     * Forward-only state machine: open -> in_progress -> closed. Same-status is
+     * treated as allowed (callers handle it as a no-op). Closed is terminal.
+     */
+    public boolean canTransitionTo(TicketStatus target) {
+        if (this == target) {
+            return true;
+        }
+        return switch (this) {
+            case OPEN -> target == IN_PROGRESS;
+            case IN_PROGRESS -> target == CLOSED;
+            case CLOSED -> false;
+        };
+    }
 }

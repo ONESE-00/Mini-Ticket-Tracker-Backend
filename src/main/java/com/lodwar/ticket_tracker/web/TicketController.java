@@ -8,6 +8,7 @@ import com.lodwar.ticket_tracker.web.dto.CreateTicketRequest;
 import com.lodwar.ticket_tracker.web.dto.TicketMapper;
 import com.lodwar.ticket_tracker.web.dto.TicketResponse;
 import com.lodwar.ticket_tracker.web.dto.TicketStats;
+import com.lodwar.ticket_tracker.web.dto.UpdateTicketRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -79,5 +81,16 @@ public class TicketController {
     @GetMapping("/{id}")
     public TicketResponse getById(@PathVariable UUID id) {
         return TicketMapper.toResponse(service.getById(id));
+    }
+
+    /**
+     * PATCH /api/v1/tickets/{id} — partial update. Only provided fields change.
+     * A status change must follow the forward-only state machine; an illegal
+     * jump returns 409 InvalidTransition. 404 if the ticket is missing.
+     */
+    @PatchMapping("/{id}")
+    public TicketResponse update(@PathVariable UUID id,
+                                 @Valid @RequestBody UpdateTicketRequest request) {
+        return TicketMapper.toResponse(service.update(id, request));
     }
 }

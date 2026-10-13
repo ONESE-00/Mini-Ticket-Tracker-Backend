@@ -9,6 +9,8 @@ import com.lodwar.ticket_tracker.repository.TicketHistoryRepository;
 import com.lodwar.ticket_tracker.repository.TicketRepository;
 import com.lodwar.ticket_tracker.web.dto.CreateTicketRequest;
 import com.lodwar.ticket_tracker.web.dto.TicketStats;
+import com.lodwar.ticket_tracker.web.dto.UpdateTicketRequest;
+import com.lodwar.ticket_tracker.web.error.ConflictException;
 import com.lodwar.ticket_tracker.web.error.NotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,7 +18,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -84,6 +89,69 @@ public class TicketService {
                 TicketSpecifications.matchesSearch(search)
         );
         return tickets.findAll(spec, pageable);
+    }
+
+    /**
+     * Partially update a ticket. Only non-null fields in the request are applied.
+     * A status change is validated against the forward-only state machine (same
+     * status is a no-op; an illegal jump throws ConflictException -> 409). A
+     * history row is written per changed field in the same transaction, and
+     * updatedAt is bumped by auditing when anything changed.
+     */
+    @Transactional
+    public Ticket update(UUID id, UpdateTicketRequest req) {
+        Ticket ticket = getById(id);
+        OffsetDateTime now = OffsetDateTime.now();
+        List<TicketHistory> changes = new ArrayList<>();
+
+        // Status: validate transition first, record a status_changed entry.
+        if (req.status() != null && req.status() != ticket.getStatus()) {
+            if (!ticket.getStatus().canTransitionTo(req.status())) {
+                throw new ConflictException("Cannot move a ticket from "
+                        + ticket.getStatus().getValue() + " to " + req.status().getValue() + ".");
+            }
+            changes.add(historyEntry(id, HistoryConstants.ACTION_STATUS_CHANGED,
+                    HistoryConstants.FIELD_STATUS,
+                    ticket.getStatus().getValue(), req.status().getValue(), now));
+            ticket.setStatus(req.status());
+        }
+
+        // Title
+        if (req.title() != null && !req.title().trim().equals(ticket.getTitle())) {
+            String newTitle = req.title().trim();
+            changes.add(historyEntry(id, HistoryConstants.ACTION_UPDATED,
+                    HistoryConstants.FIELD_TITLE, ticket.getTitle(), newTitle, now));
+            ticket.setTitle(newTitle);
+        }
+
+        // Description (empty string normalizes to null)
+        if (req.description() != null) {
+            String newDesc = normalize(req.description());
+            if (!java.util.Objects.equals(newDesc, ticket.getDescription())) {
+                changes.add(historyEntry(id, HistoryConstants.ACTION_UPDATED,
+                        HistoryConstants.FIELD_DESCRIPTION, ticket.getDescription(), newDesc, now));
+                ticket.setDescription(newDesc);
+            }
+        }
+
+        // Priority
+        if (req.priority() != null && req.priority() != ticket.getPriority()) {
+            changes.add(historyEntry(id, HistoryConstants.ACTION_UPDATED,
+                    HistoryConstants.FIELD_PRIORITY,
+                    ticket.getPriority().getValue(), req.priority().getValue(), now));
+            ticket.setPriority(req.priority());
+        }
+
+        if (!changes.isEmpty()) {
+            history.saveAll(changes);
+        }
+        // updatedAt is bumped by @LastModifiedDate auditing when the entity is dirty.
+        return tickets.saveAndFlush(ticket);
+    }
+
+    private TicketHistory historyEntry(UUID ticketId, String action, String field,
+                                       String from, String to, OffsetDateTime at) {
+        return new TicketHistory(UUID.randomUUID(), ticketId, action, field, from, to, at);
     }
 
     /**

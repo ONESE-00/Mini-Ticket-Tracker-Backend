@@ -31,6 +31,14 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of(status.value(), "NotFound", ex.getMessage()));
     }
 
+    /** Illegal state transition (forward-only state machine) -> 409. */
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiError> handleConflict(ConflictException ex) {
+        HttpStatus status = HttpStatus.CONFLICT;
+        return ResponseEntity.status(status)
+                .body(ApiError.of(status.value(), "InvalidTransition", ex.getMessage()));
+    }
+
     /**
      * Bean-validation failures on @Valid request bodies -> 400 with per-field
      * messages, so the frontend can place them on the matching form controls.
