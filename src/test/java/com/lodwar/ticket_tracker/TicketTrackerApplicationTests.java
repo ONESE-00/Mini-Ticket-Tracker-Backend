@@ -2,14 +2,15 @@ package com.lodwar.ticket_tracker;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 
-@Import(TestcontainersConfiguration.class)
+/**
+ * Smoke test: the full application context boots against a real Postgres
+ * (Testcontainers) with Flyway applied.
+ */
 @SpringBootTest
-class TicketTrackerApplicationTests {
+class TicketTrackerApplicationTests extends AbstractIntegrationTest {
 
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void contextLoads() {
+    }
 }

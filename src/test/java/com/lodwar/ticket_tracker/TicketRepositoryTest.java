@@ -14,17 +14,16 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Verifies the entity maps to the Flyway-built schema, the enum converters store
- * and read the lowercase wire values (the DB CHECK would reject anything else),
- * and JPA auditing populates the timestamps.
+ * Persistence slice test over the Testcontainers Postgres. Verifies the entity
+ * maps to the Flyway schema, the enum converters store the lowercase wire values
+ * (the DB CHECK would reject anything else), and auditing populates timestamps.
  *
- * <p>{@code Replace.NONE} uses the real configured Postgres instead of an
- * in-memory DB, so Flyway, the converters and TIMESTAMPTZ behave as in production.
- * Each test runs in a transaction that is rolled back, so no rows are left behind.
+ * <p>Replace.NONE keeps the container datasource (from AbstractIntegrationTest)
+ * instead of swapping in an in-memory DB.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class TicketRepositoryTest {
+class TicketRepositoryTest extends AbstractIntegrationTest {
 
     @Autowired
     private TicketRepository tickets;
