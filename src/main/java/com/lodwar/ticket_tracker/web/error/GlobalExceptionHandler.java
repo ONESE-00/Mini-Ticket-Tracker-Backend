@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -44,6 +45,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status)
                 .body(ApiError.of(status.value(), "ValidationError",
                         "Please check the form and try again.", fieldErrors));
+    }
+
+    /**
+     * Malformed or unreadable request body -> 400. Covers invalid enum values
+     * (e.g. priority "highj"), bad JSON, and type mismatches that fail during
+     * deserialization before bean validation runs. These are client errors, not
+     * server errors, so they must not surface as 500.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex) {
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status)
+                .body(ApiError.of(status.value(), "ValidationError",
+                        "Request body is invalid or malformed."));
     }
 
     /** Last-resort fallback -> 500, without leaking internals to the client. */
