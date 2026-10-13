@@ -8,6 +8,7 @@ import com.lodwar.ticket_tracker.domain.TicketStatus;
 import com.lodwar.ticket_tracker.repository.TicketHistoryRepository;
 import com.lodwar.ticket_tracker.repository.TicketRepository;
 import com.lodwar.ticket_tracker.web.dto.CreateTicketRequest;
+import com.lodwar.ticket_tracker.web.dto.TicketStats;
 import com.lodwar.ticket_tracker.web.error.NotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumMap;
 import java.util.UUID;
 
 /**
@@ -82,6 +84,35 @@ public class TicketService {
                 TicketSpecifications.matchesSearch(search)
         );
         return tickets.findAll(spec, pageable);
+    }
+
+    /**
+     * Aggregate counts for the stat cards: per-status, per-priority and total.
+     * Counts are computed in the DB via grouped queries; this method folds the
+     * [enum, count] rows into the TicketStats shape (missing buckets stay 0).
+     */
+    @Transactional(readOnly = true)
+    public TicketStats stats() {
+        EnumMap<TicketStatus, Long> byStatus = new EnumMap<>(TicketStatus.class);
+        for (Object[] row : tickets.countByStatus()) {
+            byStatus.put((TicketStatus) row[0], (Long) row[1]);
+        }
+        EnumMap<TicketPriority, Long> byPriority = new EnumMap<>(TicketPriority.class);
+        for (Object[] row : tickets.countByPriority()) {
+            byPriority.put((TicketPriority) row[0], (Long) row[1]);
+        }
+
+        long open = byStatus.getOrDefault(TicketStatus.OPEN, 0L);
+        long inProgress = byStatus.getOrDefault(TicketStatus.IN_PROGRESS, 0L);
+        long closed = byStatus.getOrDefault(TicketStatus.CLOSED, 0L);
+
+        return new TicketStats(
+                open, inProgress, closed,
+                open + inProgress + closed,
+                byPriority.getOrDefault(TicketPriority.LOW, 0L),
+                byPriority.getOrDefault(TicketPriority.MEDIUM, 0L),
+                byPriority.getOrDefault(TicketPriority.HIGH, 0L)
+        );
     }
 
     /** Trim and collapse an empty/blank description to null. */

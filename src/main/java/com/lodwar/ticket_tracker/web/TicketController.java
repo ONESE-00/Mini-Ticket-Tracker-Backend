@@ -7,6 +7,7 @@ import com.lodwar.ticket_tracker.service.TicketService;
 import com.lodwar.ticket_tracker.web.dto.CreateTicketRequest;
 import com.lodwar.ticket_tracker.web.dto.TicketMapper;
 import com.lodwar.ticket_tracker.web.dto.TicketResponse;
+import com.lodwar.ticket_tracker.web.dto.TicketStats;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -63,6 +64,15 @@ public class TicketController {
             Pageable pageable) {
         return service.search(status, priority, search, pageable)
                 .map(TicketMapper::toResponse);
+    }
+
+    /**
+     * GET /api/v1/tickets/stats — aggregate counts for the landing stat cards.
+     * Declared before /{id} so the literal "stats" path is not matched as an id.
+     */
+    @GetMapping("/stats")
+    public TicketStats stats() {
+        return service.stats();
     }
 
     /** GET /api/v1/tickets/{id} — single ticket, 404 if missing. */
