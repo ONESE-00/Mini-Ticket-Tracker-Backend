@@ -10,15 +10,14 @@ status workflow and a per‑ticket audit history.
 - **API base path:** `/api/v1/tickets` · **Default port:** `8090`.
 
 ---
-
 ## Prerequisites
 
-| Tool | Version | Notes |
-|---|---|---|
-| JDK | 21 (LTS) | `java -version` should report 21.x |
-| PostgreSQL | 14+ (built against 18) | A running server reachable on `localhost:5432` |
+| Tool | Version | Notes                                                                       |
+|---|---|-----------------------------------------------------------------------------|
+| JDK | 21 (LTS) | `java -version` should report 21.x                                          |
+| PostgreSQL | 14+ (built against 18) | A running server reachable on `localhost:8090`                                |
 | Docker | any recent | **Only for running the tests** (Testcontainers). Not needed to run the app. |
-| Maven | — | Not required; use the `./mvnw` / `mvnw.cmd` wrapper |
+| Maven | — | Not required; use the `./mvnw` / `mvnw.cmd` wrapper                         |
 
 ---
 
@@ -214,6 +213,43 @@ src/main/resources
 - **No authentication** — out of scope for this assignment. In production I'd add
   a JWT/OAuth2 resource server and ownership checks.
 
-**With more time:** bulk status transitions (`PATCH /tickets`), optimistic
-locking (`@Version`), request/response logging and metrics, a Dockerfile +
-compose for one‑command local Postgres, and richer OpenAPI annotations.
+## With more time
+
+Product/workflow:
+
+- **Authentication & authorization.** A JWT or cookie‑based session (Spring
+  Security resource server) establishing the current principal, then ownership
+  and role checks on every mutating endpoint.
+- **People on a ticket.** Track `created_by` and `assigned_to` as FKs to a users
+  table once a principal exists, surfaced in the list/detail responses.
+- **Separation of duties.** Enforce that the person who resolves a ticket is not
+  the one who closes it — a domain invariant checked in the service (a `409`/`403`,
+  the same pattern as the state machine), mirroring real approval‑workflow
+  controls.
+- **Re‑opening closed tickets.** Closed is terminal here, but real life needs
+  re‑open. Because the rule lives in one place (`TicketStatus.canTransitionTo`),
+  adding `closed → in_progress` is a one‑line change — the payoff of centralizing
+  the state machine.
+- **Re‑open rate as a business metric.** Reopened tickets are a quality signal
+  (premature closes, flaky fixes). This can be **derived from the existing audit
+  trail** — every transition already writes a `status_changed` row — so the
+  analytics need no new write path, just a query over `ticket_history`.
+
+Scalability:
+
+- **Pre‑aggregated stats table.** The current `GET /stats` runs
+  `COUNT(*) … GROUP BY`, which is O(rows) on every call — fine here, but it does
+  not scale to a Jira‑sized dataset (millions of tickets). The mature pattern is a
+  small counter table keyed by status/priority bucket, incremented/decremented
+  **in the same transaction** as each create/update (which this design already does
+  for history). Stats then becomes an O(1) read. Under concurrency the counter
+  updates must be atomic (`UPDATE … SET count = count + 1`) rather than
+  read‑modify‑write to avoid lost updates; a materialized view is the lazier
+  alternative but goes stale.
+
+Engineering:
+
+- Bulk status transitions (`PATCH /tickets`), optimistic locking (`@Version`),
+  request/response logging and metrics, a Dockerfile + compose for one‑command
+  local Postgres, and richer OpenAPI annotations.
+
