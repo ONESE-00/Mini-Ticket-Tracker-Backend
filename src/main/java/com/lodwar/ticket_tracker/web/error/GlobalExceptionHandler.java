@@ -8,6 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -59,6 +60,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status)
                 .body(ApiError.of(status.value(), "ValidationError",
                         "Request body is invalid or malformed."));
+    }
+
+    /**
+     * Invalid path/query parameter value -> 400. E.g. a bad enum filter
+     * ({@code ?status=bogus}) or a malformed UUID in the path.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status)
+                .body(ApiError.of(status.value(), "ValidationError",
+                        "Invalid value for parameter '" + ex.getName() + "'."));
     }
 
     /** Last-resort fallback -> 500, without leaking internals to the client. */

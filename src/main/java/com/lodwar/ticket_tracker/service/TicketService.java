@@ -3,11 +3,15 @@ package com.lodwar.ticket_tracker.service;
 import com.lodwar.ticket_tracker.domain.HistoryConstants;
 import com.lodwar.ticket_tracker.domain.Ticket;
 import com.lodwar.ticket_tracker.domain.TicketHistory;
+import com.lodwar.ticket_tracker.domain.TicketPriority;
 import com.lodwar.ticket_tracker.domain.TicketStatus;
 import com.lodwar.ticket_tracker.repository.TicketHistoryRepository;
 import com.lodwar.ticket_tracker.repository.TicketRepository;
 import com.lodwar.ticket_tracker.web.dto.CreateTicketRequest;
 import com.lodwar.ticket_tracker.web.error.NotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +66,22 @@ public class TicketService {
     public Ticket getById(UUID id) {
         return tickets.findById(id)
                 .orElseThrow(() -> new NotFoundException("That ticket no longer exists."));
+    }
+
+    /**
+     * List tickets with optional status/priority/search filters, paginated and
+     * sorted per the Pageable. Returns a Spring Page so the controller can emit
+     * the native Page JSON the frontend expects.
+     */
+    @Transactional(readOnly = true)
+    public Page<Ticket> search(TicketStatus status, TicketPriority priority,
+                               String search, Pageable pageable) {
+        Specification<Ticket> spec = Specification.allOf(
+                TicketSpecifications.hasStatus(status),
+                TicketSpecifications.hasPriority(priority),
+                TicketSpecifications.matchesSearch(search)
+        );
+        return tickets.findAll(spec, pageable);
     }
 
     /** Trim and collapse an empty/blank description to null. */
