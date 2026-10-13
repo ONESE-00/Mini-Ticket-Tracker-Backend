@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+run.out
+run.err
