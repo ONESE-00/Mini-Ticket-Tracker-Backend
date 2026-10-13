@@ -5,6 +5,7 @@ import com.lodwar.ticket_tracker.domain.TicketPriority;
 import com.lodwar.ticket_tracker.domain.TicketStatus;
 import com.lodwar.ticket_tracker.service.TicketService;
 import com.lodwar.ticket_tracker.web.dto.CreateTicketRequest;
+import com.lodwar.ticket_tracker.web.dto.TicketHistoryResponse;
 import com.lodwar.ticket_tracker.web.dto.TicketMapper;
 import com.lodwar.ticket_tracker.web.dto.TicketResponse;
 import com.lodwar.ticket_tracker.web.dto.TicketStats;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -92,5 +94,16 @@ public class TicketController {
     public TicketResponse update(@PathVariable UUID id,
                                  @Valid @RequestBody UpdateTicketRequest request) {
         return TicketMapper.toResponse(service.update(id, request));
+    }
+
+    /**
+     * GET /api/v1/tickets/{id}/history — audit trail, newest first.
+     * 404 if the ticket does not exist.
+     */
+    @GetMapping("/{id}/history")
+    public List<TicketHistoryResponse> history(@PathVariable UUID id) {
+        return service.history(id).stream()
+                .map(TicketMapper::toResponse)
+                .toList();
     }
 }

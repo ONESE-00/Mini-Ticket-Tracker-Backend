@@ -155,6 +155,18 @@ public class TicketService {
     }
 
     /**
+     * Audit trail for a ticket, newest first. Verifies the ticket exists first so
+     * a missing id returns 404 rather than an empty list.
+     */
+    @Transactional(readOnly = true)
+    public List<TicketHistory> history(UUID id) {
+        if (!tickets.existsById(id)) {
+            throw new NotFoundException("That ticket no longer exists.");
+        }
+        return history.findByTicketIdOrderByChangedAtDesc(id);
+    }
+
+    /**
      * Aggregate counts for the stat cards: per-status, per-priority and total.
      * Counts are computed in the DB via grouped queries; this method folds the
      * [enum, count] rows into the TicketStats shape (missing buckets stay 0).

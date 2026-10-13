@@ -1,6 +1,7 @@
 package com.lodwar.ticket_tracker.web.dto;
 
 import com.lodwar.ticket_tracker.domain.Ticket;
+import com.lodwar.ticket_tracker.domain.TicketHistory;
 
 /**
  * Maps domain entities to response DTOs. Plain static mapping — no MapStruct:
@@ -21,6 +22,18 @@ public final class TicketMapper {
                 t.getPriority(),
                 t.getCreatedAt(),
                 t.getUpdatedAt()
+        );
+    }
+
+    public static TicketHistoryResponse toResponse(TicketHistory h) {
+        return new TicketHistoryResponse(
+                h.getId(),
+                h.getTicketId(),
+                h.getAction(),
+                h.getField(),
+                h.getFromValue(),
+                h.getToValue(),
+                h.getChangedAt()
         );
     }
 }
