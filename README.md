@@ -217,7 +217,7 @@ src/main/resources
 
 Product/workflow:
 
-- **Authentication & authorization.** A JWT or cookie‑based session (Spring
+- **Authentication & authorization.** JWT on cookies session (Spring
   Security resource server) establishing the current principal, then ownership
   and role checks on every mutating endpoint.
 - **People on a ticket.** Track `created_by` and `assigned_to` as FKs to a users
